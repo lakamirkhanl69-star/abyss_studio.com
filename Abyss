@@ -1,0 +1,685 @@
+import React, { useMemo, useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Search,
+  Filter,
+  X,
+  ChevronRight,
+  ChevronLeft,
+  Mail,
+  Phone,
+  MapPin,
+  ExternalLink,
+  Menu,
+  Globe,
+  Star,
+  StarOff,
+} from "lucide-react";
+
+/**
+ * Abyss Studio — minimalist architecture portfolio (Jean Nouvel–style)
+ * Single-file React app that emulates jeannouvel.com core UX:
+ * - stark typography, image-led grids, lots of whitespace
+ * - Projects index with filters + text list toggle
+ * - Project detail with structured metadata panels
+ * - "My selection" (favorites) stored in localStorage
+ * - simple site search (title/location/type)
+ * - EN/FR language switcher (copy is stubbed—you can localize later)
+ * - hash routing (#/, #/projects, #/project/:slug, #/about, #/studio, #/contact, #/selection)
+ *
+ * Make it yours:
+ * 1) Replace the SITE + STUDIO constants.
+ * 2) Swap PROJECTS[] with your own.
+ * 3) Deploy to Vercel/Netlify and point DNS to abyss_studio.com
+ */
+
+// -----------------------------
+// CONFIG — EDIT THIS SECTION
+// -----------------------------
+const SITE = {
+  domain: "abyss_studio.com",
+  title: "ABYSS STUDIO",
+  subtitle: "Architecture & Spatial Design",
+  email: "info@abyss_studio.com",
+  phone: "+91 90000 00000",
+  address: "Mumbai • Pune • Remote",
+  socials: [
+    { label: "Instagram", href: "https://instagram.com/abyss_studio", icon: ExternalLink },
+    { label: "LinkedIn", href: "https://linkedin.com/company/abyss_studio", icon: ExternalLink },
+  ],
+};
+
+const STUDIO = {
+  intro:
+    "Abyss Studio works across scales—from furniture to cities—pursuing precise atmospheres of light and shadow.",
+  bio:
+    "Founded in 2020, Abyss Studio explores architecture as a synthesis of climate, craft, and culture. Each project is a specific response to a unique constellation of people, place, and time.",
+  team: [
+    { name: "Aamir Khan", role: "Principal Architect" },
+    { name: "Team Member", role: "Project Architect" },
+  ],
+};
+
+// Placeholder images (swap with your own). Deterministic Unsplash seeds.
+const ph = (seed, w = 1600, h = 1200) =>
+  `https://images.unsplash.com/photo-${seed}?auto=format&fit=crop&w=${w}&h=${h}`;
+
+// -----------------------------
+// DATA — sample projects (replace freely)
+// -----------------------------
+const PROJECTS = [
+  {
+    slug: "pavillon-samsung-2024",
+    title: "Pavilion / Light & Shadow",
+    year: 2024,
+    type: "Culture/Leisure",
+    status: "Finalised",
+    location: "Paris, FR",
+    cover: ph("1600585154526-990dced4fe10"),
+    images: [
+      ph("1600585154526-990dced4fe10", 2000, 1500),
+      ph("1512918728675-ed5a9ecdebfd", 2000, 1500),
+      ph("1519681393784-d120267933ba", 2000, 1500),
+    ],
+    summary:
+      "A temporary cultural structure composed as a continuous luminous canopy.",
+    meta: {
+      Clients: "Private",
+      "Types of assignment": "Commission, Full mission",
+      Program: "Temporary pavilion, exhibition",
+      "Surface area": "1,200 m²",
+      Address: "Paris, France",
+      Team: "Abyss Studio + collaborators",
+      Dates: "2023–2024",
+    },
+  },
+  {
+    slug: "riverfront-library",
+    title: "Riverfront Library",
+    year: 2023,
+    type: "Cultural",
+    status: "Competition",
+    location: "Ahmedabad, IN",
+    cover: ph("1518305008128-4c89f7a93aa0"),
+    images: [
+      ph("1518305008128-4c89f7a93aa0", 2000, 1500),
+      ph("1489365091240-6a18fc761ec2", 2000, 1500),
+      ph("1500530855697-b586d89ba3ee", 2000, 1500),
+    ],
+    summary:
+      "A porous slab above flood datum, crossed by public ramps and gardens.",
+    meta: {
+      Status: "Competition",
+      Dates: "2023",
+      Clients: "Municipal",
+      Program: "Library, public plaza",
+      "Surface area": "8,300 m²",
+      Address: "Ahmedabad, India",
+      Team: "Abyss Studio",
+    },
+  },
+  {
+    slug: "monsoon-residence",
+    title: "Monsoon Residence",
+    year: 2022,
+    type: "Residential",
+    status: "Built",
+    location: "Alibaug, IN",
+    cover: ph("1527030280862-64139fba04ca"),
+    images: [
+      ph("1527030280862-64139fba04ca", 2000, 1500),
+      ph("1468855976236-3c8b159a3e2a", 2000, 1500),
+      ph("1491553895911-0055eca6402d", 2000, 1500),
+    ],
+    summary:
+      "A courtyard house in concrete and teak, tuned to monsoon winds.",
+    meta: {
+      Status: "Built",
+      Dates: "2020–2022",
+      Clients: "Private",
+      Program: "Single family home",
+      "Surface area": "480 m²",
+      Address: "Alibaug, India",
+      Team: "Abyss Studio",
+    },
+  },
+  {
+    slug: "light-factory",
+    title: "Light Factory",
+    year: 2021,
+    type: "Commercial",
+    status: "Ongoing",
+    location: "Bengaluru, IN",
+    cover: ph("1500534314209-a25ddb2bd429"),
+    images: [
+      ph("1500534314209-a25ddb2bd429", 2000, 1500),
+      ph("1529429617124-95b109d3d2cf", 2000, 1500),
+      ph("1523419409543-8a336b3c0c9a", 2000, 1500),
+    ],
+    summary:
+      "Modular daylight sheds and a silent thermal spine.",
+    meta: {
+      Status: "Ongoing",
+      Dates: "2021–",
+      Clients: "Lumen Corp.",
+      Program: "Factory and offices",
+      "Surface area": "15,600 m²",
+      Address: "Bengaluru, India",
+      Team: "Abyss Studio",
+    },
+  },
+];
+
+const FILTERS = {
+  type: ["All", "Residential", "Cultural", "Culture/Leisure", "Commercial"],
+  status: ["All", "Built", "Ongoing", "Finalised", "Competition"],
+  year: ["All", 2024, 2023, 2022, 2021],
+};
+
+// -----------------------------
+// LIGHT HASH ROUTER
+// -----------------------------
+function useHashRoute() {
+  const [hash, setHash] = useState(() => window.location.hash || "#/\");
+  useEffect(() => {
+    const onHash = () => setHash(window.location.hash || "#/\");
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+  return hash.replace(/^#/, "");
+}
+
+function navigate(to) {
+  if (!to.startsWith("#/")) to = `#${to}`;
+  window.location.hash = to;
+}
+
+// -----------------------------
+// LOCAL STORAGE — My Selection
+// -----------------------------
+const KEY_SELECTION = "abyss.selection.v1";
+const useSelection = () => {
+  const [ids, setIds] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem(KEY_SELECTION) || "[]");
+    } catch {
+      return [];
+    }
+  });
+  useEffect(() => {
+    localStorage.setItem(KEY_SELECTION, JSON.stringify(ids));
+  }, [ids]);
+  const toggle = (slug) =>
+    setIds((prev) => (prev.includes(slug) ? prev.filter((s) => s !== slug) : [...prev, slug]));
+  const clear = () => setIds([]);
+  return { ids, toggle, clear };
+};
+
+// -----------------------------
+// UI PRIMITIVES
+// -----------------------------
+const Container = ({ children, className = "" }) => (
+  <div className={`mx-auto w-full max-w-7xl px-4 md:px-6 ${className}`}>{children}</div>
+);
+
+const Divider = () => <div className="h-px w-full bg-neutral-200" />;
+
+const Pill = ({ children, onClick, active }) => (
+  <button
+    onClick={onClick}
+    className={`px-3 py-1 rounded-full border text-sm transition ${
+      active
+        ? "bg-black text-white border-black"
+        : "border-neutral-300 text-neutral-700 hover:bg-neutral-100"
+    }`}
+  >
+    {children}
+  </button>
+);
+
+const ImageCard = ({ src, title, subtitle, onClick, selected }) => (
+  <motion.button
+    whileHover={{ scale: 1.01 }}
+    whileTap={{ scale: 0.99 }}
+    onClick={onClick}
+    className="group text-left relative"
+  >
+    <div className="aspect-[4/3] w-full overflow-hidden rounded-2xl bg-neutral-100">
+      <img src={src} alt="" className="h-full w-full object-cover transition group-hover:scale-[1.03]" />
+    </div>
+    <div className="mt-3 flex items-center justify-between">
+      <div>
+        <h3 className="text-base md:text-lg font-medium tracking-tight">{title}</h3>
+        {subtitle && <p className="text-sm text-neutral-500">{subtitle}</p>}
+      </div>
+      <ChevronRight className="h-5 w-5 text-neutral-400 group-hover:text-neutral-900" />
+    </div>
+    {selected && (
+      <div className="absolute top-2 right-2 flex items-center gap-1 bg-white/90 rounded-full px-2 py-1 border">
+        <Star className="w-4 h-4" /> <span className="text-xs">Selected</span>
+      </div>
+    )}
+  </motion.button>
+);
+
+// -----------------------------
+// LAYOUT
+// -----------------------------
+const Header = ({ onOpenMenu, lang, setLang, selectionCount }) => (
+  <header className="sticky top-0 z-40 w-full backdrop-blur supports-[backdrop-filter]:bg-white/70 bg-white/90 border-b border-neutral-200">
+    <Container className="flex h-16 items-center justify-between">
+      <button onClick={() => navigate("#/\")} className="font-light tracking-[0.25em] text-xs md:text-sm">
+        {SITE.title}
+      </button>
+      <nav className="hidden md:flex items-center gap-6 text-sm">
+        <a href="#/projects" className="hover:opacity-80">{lang === "fr" ? "Projets" : "Projects"}</a>
+        <a href="#/studio" className="hover:opacity-80">{lang === "fr" ? "L’Atelier" : "The Studio"}</a>
+        <a href="#/about" className="hover:opacity-80">{lang === "fr" ? "Jean Nouvel? Non, Abyss" : "About"}</a>
+        <a href="#/contact" className="hover:opacity-80">{lang === "fr" ? "Contacts" : "Contact"}</a>
+        <a href="#/selection" className="hover:opacity-80 flex items-center gap-1">
+          {lang === "fr" ? "Ma sélection" : "My selection"}
+          {selectionCount > 0 && (
+            <span className="text-xs bg-black text-white rounded-full px-2 py-0.5">{selectionCount}</span>
+          )}
+        </a>
+        <button
+          onClick={() => setLang(lang === "en" ? "fr" : "en")}
+          className="inline-flex items-center gap-1 hover:opacity-80"
+        >
+          <Globe className="w-4 h-4" /> {lang.toUpperCase()}
+        </button>
+      </nav>
+      <button className="md:hidden" onClick={onOpenMenu} aria-label="Open menu"><Menu /></button>
+    </Container>
+  </header>
+);
+
+const Footer = () => (
+  <footer className="border-t border-neutral-200 mt-24">
+    <Container className="py-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+      <div className="text-sm text-neutral-500">© {new Date().getFullYear()} {SITE.title} — {SITE.domain}</div>
+      <div className="flex items-center gap-4 text-sm">
+        <div className="flex items-center gap-2"><Mail className="w-4 h-4" /> {SITE.email}</div>
+        <div className="flex items-center gap-2"><Phone className="w-4 h-4" /> {SITE.phone}</div>
+        <div className="flex items-center gap-2"><MapPin className="w-4 h-4" /> {SITE.address}</div>
+      </div>
+    </Container>
+  </footer>
+);
+
+// -----------------------------
+// PAGES
+// -----------------------------
+const Home = ({ lang }) => (
+  <main>
+    <Container className="py-12 md:py-20">
+      <div className="mb-8 md:mb-12">
+        <h1 className="text-3xl md:text-5xl font-light tracking-tight">{SITE.subtitle}</h1>
+        <p className="mt-3 text-neutral-600 max-w-2xl">
+          {lang === "fr"
+            ? "Atelier d’architecture, guidé par la lumière, l’ombre et la matière"
+            : "A studio exploring light, shadow, and material to shape precise atmospheres."}
+        </p>
+      </div>
+      {/* Featured grid */}
+      <section>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {PROJECTS.slice(0, 6).map((p) => (
+            <ImageCard
+              key={p.slug}
+              src={p.cover}
+              title={p.title}
+              subtitle={`${p.location} · ${p.year}`}
+              onClick={() => navigate(`#/project/${p.slug}`)}
+            />
+          ))}
+        </div>
+        <div className="mt-10">
+          <a href="#/projects" className="inline-flex items-center gap-2 text-sm">
+            {lang === "fr" ? "Voir tous les projets" : "View all projects"}
+            <ChevronRight className="w-4 h-4" />
+          </a>
+        </div>
+      </section>
+    </Container>
+  </main>
+);
+
+const Projects = ({ selection, lang }) => {
+  const [query, setQuery] = useState("");
+  const [filters, setFilters] = useState({ type: "All", status: "All", year: "All" });
+  const [asList, setAsList] = useState(false);
+
+  const filtered = useMemo(() => {
+    const q = query.toLowerCase();
+    return PROJECTS.filter((p) => {
+      const okType = filters.type === "All" || p.type === filters.type;
+      const okStatus = filters.status === "All" || p.status === filters.status;
+      const okYear = filters.year === "All" || p.year === filters.year;
+      const okQ = !q || `${p.title} ${p.location} ${p.type}`.toLowerCase().includes(q);
+      return okType && okStatus && okYear && okQ;
+    });
+  }, [query, filters]);
+
+  return (
+    <main>
+      <Container className="py-8 md:py-12">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+          <h1 className="text-2xl md:text-3xl font-light tracking-tight">
+            {lang === "fr" ? "Projets" : "Projects"}
+          </h1>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 border rounded-full px-3 py-1">
+              <Search className="w-4 h-4" />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={lang === "fr" ? "Recherche…" : "Search…"}
+                className="outline-none text-sm bg-transparent"
+              />
+            </div>
+            <button
+              className="text-sm px-3 py-1 border rounded-full"
+              onClick={() => setAsList((v) => !v)}
+            >
+              {asList ? (lang === "fr" ? "Grille" : "Grid") : (lang === "fr" ? "Liste" : "List")}
+            </button>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 mb-6">
+          {FILTERS.type.map((t) => (
+            <Pill key={t} active={t === filters.type} onClick={() => setFilters({ ...filters, type: t })}>
+              {t}
+            </Pill>
+          ))}
+          <Divider />
+          {FILTERS.status.map((s) => (
+            <Pill key={s} active={s === filters.status} onClick={() => setFilters({ ...filters, status: s })}>
+              {s}
+            </Pill>
+          ))}
+          <Divider />
+          {FILTERS.year.map((y) => (
+            <Pill key={y} active={y === filters.year} onClick={() => setFilters({ ...filters, year: y })}>
+              {y}
+            </Pill>
+          ))}
+        </div>
+
+        {!asList ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filtered.map((p) => (
+              <ImageCard
+                key={p.slug}
+                src={p.cover}
+                title={p.title}
+                subtitle={`${p.location} · ${p.year}`}
+                onClick={() => navigate(`#/project/${p.slug}`)}
+                selected={selection.ids.includes(p.slug)}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="divide-y">
+            {filtered.map((p) => (
+              <button
+                key={p.slug}
+                onClick={() => navigate(`#/project/${p.slug}`)}
+                className="w-full py-4 text-left hover:bg-neutral-50"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-medium">{p.title}</span>
+                  <span className="text-sm text-neutral-500">{p.location} · {p.year} · {p.status}</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </Container>
+    </main>
+  );
+};
+
+const Project = ({ slug, selection, lang }) => {
+  const project = PROJECTS.find((p) => p.slug === slug);
+  if (!project) return (
+    <Container className="py-12"><p>Project not found.</p></Container>
+  );
+
+  return (
+    <main>
+      <Container className="py-6 md:py-10">
+        <div className="flex items-center justify-between mb-4">
+          <button onClick={() => navigate("#/projects")} className="inline-flex items-center gap-1 text-sm">
+            <ChevronLeft className="w-4 h-4" /> {lang === "fr" ? "Retour aux projets" : "Back to projects"}
+          </button>
+          <button
+            onClick={() => selection.toggle(project.slug)}
+            className="inline-flex items-center gap-2 text-sm border rounded-full px-3 py-1"
+          >
+            {selection.ids.includes(project.slug) ? (
+              <>
+                <Star className="w-4 h-4" /> {lang === "fr" ? "Retirer de ma sélection" : "Remove from my selection"}
+              </>
+            ) : (
+              <>
+                <StarOff className="w-4 h-4" /> {lang === "fr" ? "Ajouter à ma sélection" : "Add to my selection"}
+              </>
+            )}
+          </button>
+        </div>
+
+        <h1 className="text-3xl md:text-5xl font-light tracking-tight">{project.title}</h1>
+        <p className="mt-2 text-neutral-600">{project.location} · {project.year} · {project.type}</p>
+
+        {/* Gallery */}
+        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+          {project.images.map((src, i) => (
+            <div key={i} className="bg-neutral-100 rounded-2xl overflow-hidden">
+              <img src={src} alt="" className="w-full h-full object-cover" />
+            </div>
+          ))}
+        </div>
+
+        {/* Summary */}
+        {project.summary && (
+          <p className="mt-6 max-w-3xl text-neutral-800 leading-relaxed">{project.summary}</p>
+        )}
+
+        {/* Meta grid reminiscent of jeannouvel.com */}
+        <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+          {Object.entries(project.meta).map(([k, v]) => (
+            <div key={k}>
+              <div className="text-sm uppercase tracking-wide text-neutral-400">{k}</div>
+              <div className="mt-1 text-neutral-900">{v}</div>
+            </div>
+          ))}
+        </div>
+      </Container>
+    </main>
+  );
+};
+
+const Studio = ({ lang }) => (
+  <main>
+    <Container className="py-12 md:py-16">
+      <h1 className="text-3xl md:text-5xl font-light tracking-tight">
+        {lang === "fr" ? "L’Atelier" : "The Studio"}
+      </h1>
+      <p className="mt-4 max-w-3xl text-neutral-700 leading-relaxed">{STUDIO.intro}</p>
+      <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="prose max-w-none">
+          <p>{STUDIO.bio}</p>
+        </div>
+        <div>
+          <div className="text-sm uppercase tracking-wide text-neutral-400">Team</div>
+          <ul className="mt-2 space-y-2">
+            {STUDIO.team.map((m) => (
+              <li key={m.name} className="flex items-center justify-between border-b py-2">
+                <span>{m.name}</span>
+                <span className="text-neutral-500 text-sm">{m.role}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </Container>
+  </main>
+);
+
+const About = ({ lang }) => (
+  <main>
+    <Container className="py-12 md:py-16">
+      <h1 className="text-3xl md:text-5xl font-light tracking-tight">{lang === "fr" ? "À propos" : "About"}</h1>
+      <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="prose max-w-none">
+          <p>
+            {lang === "fr"
+              ? "Abyss Studio développe une architecture contextuelle, matérielle et poétique."
+              : "Abyss Studio develops contextual, material, and poetic architecture."}
+          </p>
+          <p>
+            {lang === "fr"
+              ? "Chaque projet est un prototype guidé par le site, la lumière et l’usage."
+              : "Each project is a prototype guided by site, light, and use."}
+          </p>
+        </div>
+        <div className="rounded-2xl overflow-hidden bg-neutral-100">
+          <img src={ph("1482192596544-9eb780fc7f66", 2000, 1500)} alt="Studio" className="w-full h-full object-cover" />
+        </div>
+      </div>
+    </Container>
+  </main>
+);
+
+const Contact = ({ lang }) => (
+  <main>
+    <Container className="py-12 md:py-16">
+      <h1 className="text-3xl md:text-5xl font-light tracking-tight">{lang === "fr" ? "Contacts" : "Contact"}</h1>
+      <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="space-y-3">
+          <div className="flex items-center gap-2"><Mail className="w-4 h-4" /> {SITE.email}</div>
+          <div className="flex items-center gap-2"><Phone className="w-4 h-4" /> {SITE.phone}</div>
+          <div className="flex items-center gap-2"><MapPin className="w-4 h-4" /> {SITE.address}</div>
+          <div className="pt-2 text-sm text-neutral-500">
+            {lang === "fr" ? "Pour la presse, les matériaux, ou les candidatures, utilisez l’e‑mail ci‑dessus." : "For press, materials, or applications, use the email above."}
+          </div>
+        </div>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            alert("Form submitted (wire to your backend or Formspree)");
+          }}
+          className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4"
+        >
+          <input className="border rounded-xl px-3 py-2" placeholder={lang === "fr" ? "Nom" : "Name"} />
+          <input className="border rounded-xl px-3 py-2" placeholder="Email" type="email" />
+          <input className="md:col-span-2 border rounded-xl px-3 py-2" placeholder={lang === "fr" ? "Sujet" : "Subject"} />
+          <textarea className="md:col-span-2 border rounded-xl px-3 py-2 h-32" placeholder={lang === "fr" ? "Message" : "Message"} />
+          <button className="md:col-span-2 border rounded-full px-4 py-2 hover:bg-neutral-100" type="submit">
+            {lang === "fr" ? "Envoyer" : "Send"}
+          </button>
+        </form>
+      </div>
+    </Container>
+  </main>
+);
+
+const Selection = ({ selection, lang }) => {
+  const items = PROJECTS.filter((p) => selection.ids.includes(p.slug));
+  return (
+    <main>
+      <Container className="py-12 md:py-16">
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-3xl md:text-5xl font-light tracking-tight">
+            {lang === "fr" ? "Ma sélection" : "My selection"}
+          </h1>
+          {selection.ids.length > 0 && (
+            <button onClick={selection.clear} className="text-sm border rounded-full px-3 py-1">
+              {lang === "fr" ? "Tout effacer" : "Clear all"}
+            </button>
+          )}
+        </div>
+        {items.length === 0 ? (
+          <p className="text-neutral-600">{lang === "fr" ? "Aucun projet sélectionné." : "No projects selected yet."}</p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {items.map((p) => (
+              <ImageCard
+                key={p.slug}
+                src={p.cover}
+                title={p.title}
+                subtitle={`${p.location} · ${p.year}`}
+                onClick={() => navigate(`#/project/${p.slug}`)}
+                selected
+              />
+            ))}
+          </div>
+        )}
+      </Container>
+    </main>
+  );
+};
+
+// -----------------------------
+// APP SHELL
+// -----------------------------
+export default function App() {
+  const route = useHashRoute();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [lang, setLang] = useState("en");
+  const selection = useSelection();
+
+  let screen = <Home lang={lang} />;
+  if (route.startsWith("/projects")) screen = <Projects selection={selection} lang={lang} />;
+  if (route.startsWith("/project/")) screen = (
+    <Project slug={route.split("/")[2]} selection={selection} lang={lang} />
+  );
+  if (route.startsWith("/studio")) screen = <Studio lang={lang} />;
+  if (route.startsWith("/about")) screen = <About lang={lang} />;
+  if (route.startsWith("/contact")) screen = <Contact lang={lang} />;
+  if (route.startsWith("/selection")) screen = <Selection selection={selection} lang={lang} />;
+
+  return (
+    <div className="min-h-screen bg-white text-neutral-900">
+      <Header onOpenMenu={() => setMenuOpen(true)} lang={lang} setLang={setLang} selectionCount={selection.ids.length} />
+
+      {/* Mobile menu */}
+      <AnimatePresence>
+        {menuOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-white"
+          >
+            <Container className="pt-6">
+              <div className="flex items-center justify-between mb-8">
+                <div className="font-light tracking-[0.25em] text-xs">{SITE.title}</div>
+                <button onClick={() => setMenuOpen(false)} aria-label="Close menu"><X /></button>
+              </div>
+              <nav className="flex flex-col text-2xl gap-4">
+                <a href="#/projects" onClick={() => setMenuOpen(false)}>Projects</a>
+                <a href="#/studio" onClick={() => setMenuOpen(false)}>The Studio</a>
+                <a href="#/about" onClick={() => setMenuOpen(false)}>About</a>
+                <a href="#/contact" onClick={() => setMenuOpen(false)}>Contact</a>
+                <a href="#/selection" onClick={() => setMenuOpen(false)}>My selection</a>
+                <button
+                  className="mt-6 text-sm w-fit border rounded-full px-4 py-2"
+                  onClick={() => setLang(lang === "en" ? "fr" : "en")}
+                >
+                  <span className="inline-flex items-center gap-2"><Globe className="w-4 h-4" /> {lang.toUpperCase()}</span>
+                </button>
+              </nav>
+            </Container>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {screen}
+
+      <Footer />
+    </div>
+  );
+}
